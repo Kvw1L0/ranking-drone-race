@@ -1,0 +1,200 @@
+{
+  "pilots": [
+    {
+      "id": "plt-1",
+      "name": "Lucas \"Viper\" Morales",
+      "callsign": "VIPER",
+      "dorsal": "07",
+      "team": "Veltis Aero",
+      "registeredAt": "2026-10-16T05:40:02.839Z"
+    },
+    {
+      "id": "plt-2",
+      "name": "Camila \"Apex\" Soto",
+      "callsign": "APEX",
+      "dorsal": "14",
+      "team": "Skyline FPV",
+      "registeredAt": "2026-10-16T05:40:02.841Z"
+    },
+    {
+      "id": "plt-3",
+      "name": "Matías \"Ghost\" Herrera",
+      "callsign": "GHOST",
+      "dorsal": "23",
+      "team": "Rotor Strike",
+      "registeredAt": "2026-10-16T05:40:02.841Z"
+    },
+    {
+      "id": "plt-4",
+      "name": "Valentina \"Nova\" Vega",
+      "callsign": "NOVA",
+      "dorsal": "44",
+      "team": "Quantum Drones",
+      "registeredAt": "2026-10-16T05:40:02.841Z"
+    },
+    {
+      "id": "plt-5",
+      "name": "Diego \"Blaze\" Castro",
+      "callsign": "BLAZE",
+      "dorsal": "55",
+      "team": "Veltis Aero",
+      "registeredAt": "2026-10-16T05:40:02.841Z"
+    },
+    {
+      "id": "plt-6",
+      "name": "Sofía \"Falcon\" Riquelme",
+      "callsign": "FALCON",
+      "dorsal": "88",
+      "team": "Aero Dynamics",
+      "registeredAt": "2026-10-16T05:40:02.841Z"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "track-1",
+      "name": "Pista 1: Slalom de Precisión",
+      "code": "P1",
+      "color": "#00e5ff",
+      "description": "Circuito de giros cerrados y puertas consecutivas",
+      "active": true,
+      "order": 1
+    },
+    {
+      "id": "track-2",
+      "name": "Pista 2: Drag Sprint",
+      "code": "P2",
+      "color": "#ff9100",
+      "description": "Recta de alta velocidad con frenado en zona delimitada",
+      "active": true,
+      "order": 2
+    },
+    {
+      "id": "track-3",
+      "name": "Pista 3: Circuito Técnico de Aros",
+      "code": "P3",
+      "color": "#00e676",
+      "description": "Túnel de aros con elevación y split-s vertical",
+      "active": true,
+      "order": 3
+    }
+  ],
+  "runs": [
+    {
+      "id": "run-demo-1",
+      "pilotId": "plt-1",
+      "pilotName": "Lucas \"Viper\" Morales",
+      "pilotCallsign": "VIPER",
+      "pilotDorsal": "07",
+      "pilotTeam": "Veltis Aero",
+      "trackId": "track-1",
+      "trackName": "Pista 1: Slalom de Precisión",
+      "trackCode": "P1",
+      "timeSeconds": 78.45,
+      "status": "COMPLETED",
+      "attemptNumber": 1,
+      "isUnlockedForRetry": false,
+      "timestamp": "2026-10-16T04:40:02.846Z",
+      "recordedBy": "Monitor P1"
+    },
+    {
+      "id": "run-demo-2",
+      "pilotId": "plt-2",
+      "pilotName": "Camila \"Apex\" Soto",
+      "pilotCallsign": "APEX",
+      "pilotDorsal": "14",
+      "pilotTeam": "Skyline FPV",
+      "trackId": "track-1",
+      "trackName": "Pista 1: Slalom de Precisión",
+      "trackCode": "P1",
+      "timeSeconds": 76.12,
+      "status": "COMPLETED",
+      "attemptNumber": 1,
+      "isUnlockedForRetry": false,
+      "timestamp": "2026-10-16T04:50:02.847Z",
+      "recordedBy": "Monitor P1"
+    },
+    {
+      "id": "run-demo-3",
+      "pilotId": "plt-3",
+      "pilotName": "Matías \"Ghost\" Herrera",
+      "pilotCallsign": "GHOST",
+      "pilotDorsal": "23",
+      "pilotTeam": "Rotor Strike",
+      "trackId": "track-1",
+      "trackName": "Pista 1: Slalom de Precisión",
+      "trackCode": "P1",
+      "timeSeconds": 83.2,
+      "status": "COMPLETED",
+      "attemptNumber": 1,
+      "isUnlockedForRetry": false,
+      "timestamp": "2026-10-16T04:58:22.847Z",
+      "recordedBy": "Monitor P1"
+    },
+    {
+      "id": "run-demo-4",
+      "pilotId": "plt-1",
+      "pilotName": "Lucas \"Viper\" Morales",
+      "pilotCallsign": "VIPER",
+      "pilotDorsal": "07",
+      "pilotTeam": "Veltis Aero",
+      "trackId": "track-2",
+      "trackName": "Pista 2: Drag Sprint",
+      "trackCode": "P2",
+      "timeSeconds": 42.1,
+      "status": "COMPLETED",
+      "attemptNumber": 1,
+      "isUnlockedForRetry": false,
+      "timestamp": "2026-10-16T05:06:42.847Z",
+      "recordedBy": "Monitor P2"
+    },
+    {
+      "id": "run-demo-5",
+      "pilotId": "plt-2",
+      "pilotName": "Camila \"Apex\" Soto",
+      "pilotCallsign": "APEX",
+      "pilotDorsal": "14",
+      "pilotTeam": "Skyline FPV",
+      "trackId": "track-2",
+      "trackName": "Pista 2: Drag Sprint",
+      "trackCode": "P2",
+      "timeSeconds": 43.85,
+      "status": "COMPLETED",
+      "attemptNumber": 1,
+      "isUnlockedForRetry": false,
+      "timestamp": "2026-10-16T05:15:02.847Z",
+      "recordedBy": "Monitor P2"
+    },
+    {
+      "id": "run-demo-6",
+      "pilotId": "plt-4",
+      "pilotName": "Valentina \"Nova\" Vega",
+      "pilotCallsign": "NOVA",
+      "pilotDorsal": "44",
+      "pilotTeam": "Quantum Drones",
+      "trackId": "track-2",
+      "trackName": "Pista 2: Drag Sprint",
+      "trackCode": "P2",
+      "timeSeconds": 41.5,
+      "status": "COMPLETED",
+      "attemptNumber": 1,
+      "isUnlockedForRetry": false,
+      "timestamp": "2026-10-16T05:23:22.847Z",
+      "recordedBy": "Monitor P2"
+    }
+  ],
+  "settings": {
+    "pointsSystem": [
+      25,
+      18,
+      15,
+      12,
+      10,
+      8,
+      6,
+      4,
+      2,
+      1
+    ],
+    "eventName": "Torneo de Carreras de Drones Veltis"
+  }
+}

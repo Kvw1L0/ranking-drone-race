@@ -1,0 +1,419 @@
+import { ref, set, get, update, onValue } from 'firebase/database';
+import { getFirebaseDb } from './firebase';
+
+export const TEAMS_LIST = [
+  { id: 1, name: "Escudería 1 - Red Bull Racing", color: "#3671C6", shortName: "EQ 01" },
+  { id: 2, name: "Escudería 2 - Scuderia Ferrari", color: "#E80020", shortName: "EQ 02" },
+  { id: 3, name: "Escudería 3 - Mercedes-AMG Petronas", color: "#27F4D2", shortName: "EQ 03" },
+  { id: 4, name: "Escudería 4 - McLaren F1 Team", color: "#FF8000", shortName: "EQ 04" },
+  { id: 5, name: "Escudería 5 - Aston Martin Aramco", color: "#229971", shortName: "EQ 05" },
+  { id: 6, name: "Escudería 6 - Alpine F1 Team", color: "#0093CC", shortName: "EQ 06" },
+  { id: 7, name: "Escudería 7 - Williams Racing", color: "#64C4FF", shortName: "EQ 07" },
+  { id: 8, name: "Escudería 8 - Visa Cash App RB", color: "#6692FF", shortName: "EQ 08" },
+  { id: 9, name: "Escudería 9 - Stake F1 Kick Sauber", color: "#52E252", shortName: "EQ 09" },
+  { id: 10, name: "Escudería 10 - Haas F1 Team", color: "#B6BABD", shortName: "EQ 10" }
+];
+
+class FirebaseRaceEngine {
+  constructor() {
+    this.db = null;
+  }
+
+  init() {
+    if (!this.db) {
+      this.db = getFirebaseDb();
+    }
+    return this.db;
+  }
+
+  // 1. Escuchar cambios de estado global de la carrera
+  onStateChange(callback) {
+    this.init();
+    if (!this.db) return () => {};
+
+    const stateRef = ref(this.db, 'f1_race/state');
+    return onValue(stateRef, (snapshot) => {
+      const val = snapshot.val();
+      callback(val);
+    });
+  }
+
+  // 2. Escuchar cambios de telemetría de los 10 equipos
+  onTelemetryChange(callback) {
+    this.init();
+    if (!this.db) return () => {};
+
+    const telemRef = ref(this.db, 'f1_race/telemetry');
+    return onValue(telemRef, (snapshot) => {
+      const val = snapshot.val();
+      callback(val);
+    });
+  }
+
+  // 3. Iniciar un caso / Sector
+  async startCase(caseData, sectorIndex = 1, totalSectors = 10) {
+    this.init();
+    if (!this.db) return;
+
+    const startTime = Date.now();
+
+    // Limpiar envíos de la ronda previa
+    await set(ref(this.db, 'f1_race/submissions'), {});
+
+    // Actualizar estado activo
+    await update(ref(this.db, 'f1_race/state'), {
+      status: 'ACTIVE_CASE',
+      currentCase: caseData,
+      currentSectorIndex: Number(sectorIndex),
+      totalSectors: Number(totalSectors),
+      startTime,
+      durationLimitSeconds: caseData.timeLimitSeconds || 60,
+      submissionsCount: 0,
+      calculatedResults: null,
+      isSafetyCarActive: false
+    });
+  }
+
+  // 4. Enviar respuestas de un participante
+  async submitAnswers(teamId, answers, startTime, currentCase) {
+    this.init();
+    if (!this.db) return;
+
+    const numTeamId = Number(teamId);
+    const team = TEAMS_LIST.find(t => t.id === numTeamId);
+    const now = Date.now();
+    const effectiveStart = startTime || now;
+    const durationMs = Math.max(100, now - effectiveStart);
+
+    let totalScore = 0;
+    const stepBreakdown = {};
+
+    const steps = currentCase?.steps || [];
+    steps.forEach(step => {
+      const chosenOptId = answers[step.id];
+      const opt = step.options?.find(o => o.id === chosenOptId);
+      const pts = opt ? Number(opt.points) || 0 : 0;
+      totalScore += pts;
+      stepBreakdown[step.id] = {
+        chosenOptionId: chosenOptId,
+        points: pts
+      };
+    });
+
+    const submissionData = {
+      teamId: numTeamId,
+      teamName: team?.name || `Equipo ${numTeamId}`,
+      shortName: team?.shortName || `EQ ${numTeamId}`,
+      color: team?.color || '#E10600',
+      score: totalScore,
+      durationMs,
+      durationSeconds: (durationMs / 1000).toFixed(2),
+      submittedAt: now,
+      stepBreakdown
+    };
+
+    // Guardar en Firebase
+    await set(ref(this.db, `f1_race/submissions/${numTeamId}`), submissionData);
+
+    // Actualizar contador
+    const subsSnap = await get(ref(this.db, 'f1_race/submissions'));
+    const allSubs = subsSnap.val() || {};
+    await update(ref(this.db, 'f1_race/state'), {
+      submissionsCount: Object.keys(allSubs).length
+    });
+
+    return submissionData;
+  }
+
+  // 5. Finalizar automáticamente y calcular resultados (Botón Auto / Demo)
+  async autoFinish(currentCase, currentSectorIndex = 1, totalSectors = 10) {
+    this.init();
+    if (!this.db) return;
+    const steps = currentCase?.steps || [];
+    const subsSnap = await get(ref(this.db, 'f1_race/submissions'));
+    const currentSubs = subsSnap.val() || {};
+
+    // Rellenar respuestas para los equipos que no enviaron
+    for (const team of TEAMS_LIST) {
+      if (!currentSubs[team.id]) {
+        const simAnswers = {};
+        // Simulación variada: algunos perfectos, algunos con pequeños errores
+        const isPerfect = team.id === 1 || team.id === 4 || team.id === 8 || Math.random() > 0.45;
+        const durationMs = Math.round((7 + Math.random() * 20) * 1000);
+
+        steps.forEach(s => {
+          if (isPerfect) {
+            const bestOpt = s.options.reduce((p, c) => (c.points > p.points ? c : p), s.options[0]);
+            simAnswers[s.id] = bestOpt.id;
+          } else {
+            const rndOpt = s.options[Math.floor(Math.random() * s.options.length)];
+            simAnswers[s.id] = rndOpt.id;
+          }
+        });
+
+        await this.submitAnswers(team.id, simAnswers, Date.now() - durationMs, currentCase);
+      }
+    }
+
+    // Calcular y revelar resultados
+    return await this.calculateAndRevealResults(currentCase, currentSectorIndex, totalSectors);
+  }
+
+  // 6. Calcular resultados de la ronda, Pole Position Boost (+20%) y DRS (+10% en P8-P10)
+  async calculateAndRevealResults(currentCase, currentSectorIndex = 1, totalSectors = 10) {
+    this.init();
+    if (!this.db) return;
+
+    const subsSnap = await get(ref(this.db, 'f1_race/submissions'));
+    const telemSnap = await get(ref(this.db, 'f1_race/telemetry'));
+
+    const submissions = subsSnap.val() || {};
+    const previousTelemetry = telemSnap.val() || {};
+
+    const steps = currentCase?.steps || [];
+    let maxPossibleScore = 0;
+    steps.forEach(s => {
+      maxPossibleScore += Math.max(...s.options.map(o => Number(o.points) || 0), 0);
+    });
+    if (maxPossibleScore === 0) maxPossibleScore = 500;
+
+    const sectorWeightPercent = 100 / (Number(totalSectors) || 10);
+
+    // Procesar los 10 equipos
+    const roundResults = TEAMS_LIST.map(team => {
+      const sub = submissions[team.id];
+      const prevTelem = previousTelemetry[team.id] || {
+        currentDistance: 0,
+        cumulativeScore: 0,
+        currentPosition: team.id
+      };
+
+      if (sub) {
+        return {
+          teamId: team.id,
+          teamName: team.name,
+          shortName: team.shortName,
+          color: team.color,
+          hasSubmitted: true,
+          caseScore: sub.score,
+          durationMs: sub.durationMs,
+          durationFormatted: (sub.durationMs / 1000).toFixed(2) + 's',
+          isPerfect: sub.score === maxPossibleScore,
+          isFastestPerfect: false,
+          isDRSActive: false,
+          previousDistance: prevTelem.currentDistance || 0,
+          sectorAdvancePercent: 0,
+          newCumulativeDistance: prevTelem.currentDistance || 0,
+          cumulativeScore: (prevTelem.cumulativeScore || 0) + sub.score,
+          previousPosition: prevTelem.currentPosition || team.id
+        };
+      } else {
+        return {
+          teamId: team.id,
+          teamName: team.name,
+          shortName: team.shortName,
+          color: team.color,
+          hasSubmitted: false,
+          caseScore: 0,
+          durationMs: 999999999,
+          durationFormatted: 'DNF',
+          isPerfect: false,
+          isFastestPerfect: false,
+          isDRSActive: false,
+          previousDistance: prevTelem.currentDistance || 0,
+          sectorAdvancePercent: 0,
+          newCumulativeDistance: prevTelem.currentDistance || 0,
+          cumulativeScore: prevTelem.cumulativeScore || 0,
+          previousPosition: prevTelem.currentPosition || team.id
+        };
+      }
+    });
+
+    // Identificar ganador del Pole Position Boost (+20%) en este sector
+    const perfectSubs = roundResults.filter(t => t.hasSubmitted && t.isPerfect);
+    let fastestPerfectTeamId = null;
+    if (perfectSubs.length > 0) {
+      perfectSubs.sort((a, b) => a.durationMs - b.durationMs);
+      fastestPerfectTeamId = perfectSubs[0].teamId;
+    }
+
+    // Aplicar cálculos de avance, Pole Boost y DRS Boost
+    roundResults.forEach(item => {
+      const accuracyRatio = item.caseScore / maxPossibleScore;
+      const isEligibleForDRS = item.previousPosition >= 8 && item.isPerfect && item.teamId !== fastestPerfectTeamId;
+
+      if (fastestPerfectTeamId && item.teamId === fastestPerfectTeamId) {
+        item.isFastestPerfect = true;
+        item.isDRSActive = false;
+        // Bonificación de +20%
+        item.sectorAdvancePercent = parseFloat((sectorWeightPercent * 1.20).toFixed(2));
+      } else if (isEligibleForDRS) {
+        item.isFastestPerfect = false;
+        item.isDRSActive = true;
+        // Bonificación DRS de +10% para equipos rezagados
+        item.sectorAdvancePercent = parseFloat((sectorWeightPercent * 1.10).toFixed(2));
+      } else {
+        item.isFastestPerfect = false;
+        item.isDRSActive = false;
+        item.sectorAdvancePercent = parseFloat((accuracyRatio * sectorWeightPercent).toFixed(2));
+      }
+
+      item.newCumulativeDistance = Math.min(100, parseFloat((item.previousDistance + item.sectorAdvancePercent).toFixed(2)));
+    });
+
+    // Ordenar ranking
+    const ranking = [...roundResults].sort((a, b) => {
+      if (b.newCumulativeDistance !== a.newCumulativeDistance) {
+        return b.newCumulativeDistance - a.newCumulativeDistance;
+      }
+      return a.durationMs - b.durationMs;
+    });
+
+    ranking.forEach((r, idx) => {
+      r.currentPosition = idx + 1;
+      r.positionDelta = r.previousPosition - r.currentPosition;
+    });
+
+    // Actualizar telemetría global
+    const newTelemetry = {};
+    roundResults.forEach(item => {
+      const rankItem = ranking.find(rk => rk.teamId === item.teamId);
+      item.currentPosition = rankItem.currentPosition;
+      item.positionDelta = rankItem.positionDelta;
+
+      newTelemetry[item.teamId] = {
+        teamId: item.teamId,
+        teamName: item.teamName,
+        shortName: item.shortName,
+        color: item.color,
+        cumulativeScore: item.cumulativeScore,
+        previousDistance: item.previousDistance,
+        currentDistance: item.newCumulativeDistance,
+        previousPosition: item.previousPosition,
+        currentPosition: item.currentPosition,
+        positionDelta: item.positionDelta,
+        lastSectorAdvance: item.sectorAdvancePercent,
+        isFastestPerfect: item.isFastestPerfect,
+        isDRSActive: item.isDRSActive
+      };
+    });
+
+    const calculatedResults = {
+      caseId: currentCase?.id,
+      caseTitle: currentCase?.title,
+      sectorIndex: currentSectorIndex,
+      totalSectors,
+      maxPossibleScore,
+      fastestPerfectTeamId,
+      teams: roundResults,
+      ranking,
+      calculatedAt: Date.now()
+    };
+
+    // Guardar en Firebase
+    await set(ref(this.db, 'f1_race/telemetry'), newTelemetry);
+    await update(ref(this.db, 'f1_race/state'), {
+      status: 'REVEALED',
+      calculatedResults
+    });
+
+    return calculatedResults;
+  }
+
+  // 7. Activar o desactivar Virtual Safety Car (VSC)
+  async toggleSafetyCar(isActive) {
+    this.init();
+    if (!this.db) return;
+
+    if (isActive) {
+      // Comprimir brechas entre autos al 50%
+      const telemSnap = await get(ref(this.db, 'f1_race/telemetry'));
+      const telem = telemSnap.val() || {};
+      const teamIds = Object.keys(telem);
+      if (teamIds.length > 0) {
+        const distances = teamIds.map(id => telem[id].currentDistance || 0);
+        const maxDist = Math.max(...distances);
+        teamIds.forEach(id => {
+          const d = telem[id].currentDistance || 0;
+          telem[id].currentDistance = parseFloat((maxDist - (maxDist - d) * 0.5).toFixed(2));
+        });
+        await set(ref(this.db, 'f1_race/telemetry'), telem);
+      }
+    }
+
+    await update(ref(this.db, 'f1_race/state'), {
+      isSafetyCarActive: !!isActive
+    });
+  }
+
+  // 8. Siguiente Sector
+  async nextSector(nextSectorIndex, totalSectors = 10) {
+    this.init();
+    if (!this.db) return;
+
+    // Actualizar previousDistance = currentDistance en la telemetría
+    const telemSnap = await get(ref(this.db, 'f1_race/telemetry'));
+    const telem = telemSnap.val() || {};
+
+    Object.keys(telem).forEach(teamId => {
+      telem[teamId].previousDistance = telem[teamId].currentDistance;
+      telem[teamId].previousPosition = telem[teamId].currentPosition;
+      telem[teamId].isDRSActive = false;
+      telem[teamId].isFastestPerfect = false;
+    });
+
+    await set(ref(this.db, 'f1_race/telemetry'), telem);
+    await set(ref(this.db, 'f1_race/submissions'), {});
+    await update(ref(this.db, 'f1_race/state'), {
+      status: 'LOBBY',
+      currentCase: null,
+      currentSectorIndex: Number(nextSectorIndex),
+      totalSectors: Number(totalSectors),
+      startTime: null,
+      submissionsCount: 0,
+      calculatedResults: null,
+      isSafetyCarActive: false
+    });
+  }
+
+  // 9. Reiniciar Campeonato en la Nube (0%)
+  async resetChampionship() {
+    this.init();
+    if (!this.db) return;
+
+    const initialTelemetry = {};
+    TEAMS_LIST.forEach((t, idx) => {
+      initialTelemetry[t.id] = {
+        teamId: t.id,
+        teamName: t.name,
+        shortName: t.shortName,
+        color: t.color,
+        cumulativeScore: 0,
+        previousDistance: 0,
+        currentDistance: 0,
+        previousPosition: idx + 1,
+        currentPosition: idx + 1,
+        positionDelta: 0,
+        lastSectorAdvance: 0,
+        isFastestPerfect: false,
+        isDRSActive: false
+      };
+    });
+
+    await set(ref(this.db, 'f1_race/telemetry'), initialTelemetry);
+    await set(ref(this.db, 'f1_race/submissions'), {});
+    await set(ref(this.db, 'f1_race/state'), {
+      status: 'LOBBY',
+      currentCase: null,
+      currentSectorIndex: 1,
+      totalSectors: 10,
+      startTime: null,
+      durationLimitSeconds: 60,
+      submissionsCount: 0,
+      calculatedResults: null,
+      isSafetyCarActive: false
+    });
+  }
+}
+
+export const firebaseRaceEngine = new FirebaseRaceEngine();
