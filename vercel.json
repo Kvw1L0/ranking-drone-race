@@ -1,0 +1,5 @@
+{
+  "name": "ranking-drone-race",
+  "buildCommand": "cd client && npm run build",
+  "outputDirectory": "client/.next"
+}
