@@ -46,9 +46,8 @@ export default function CinematicVideoModal({
         onEnded={onFinish}
         className="w-full h-full object-cover opacity-95 absolute inset-0"
       >
-        <source src="/videos/f1-race-action.mp4" type="video/mp4" />
-        <source src="/videos/f1-race-action.mp4.mp4" type="video/mp4" />
         <source src={videoUrl} type="video/mp4" />
+        <source src="/videos/f1-race-action.mp4" type="video/mp4" />
       </video>
 
       {/* Overlay Cinemático */}
